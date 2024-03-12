@@ -70,12 +70,13 @@ class ComputeStack(Stack):
             },
             secrets={
                 'WORDPRESS_DB_USER': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="username"),
-                'WORDPRESS_DB_PASSWORD': ecs.Secret.from_secrets_manager(props.data_aurora_dbsecret, field="password"),
+                'WORDPRESS_DB_PASSWORD': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="password"),
                 'WORDPRESS_DB_NAME': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="dbname"),
             }
          )
 
         container.add_mount_points(container_volume_mount_point)
+        container.add_port_mappings(ecs.PortMapping(container_port=80))
 
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
