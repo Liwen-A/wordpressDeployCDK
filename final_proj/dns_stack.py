@@ -3,7 +3,7 @@ from aws_cdk import (
     aws_route53 as r53,
 )
 from constructs import Construct
-
+from final_proj.util import settings, Props
 
 class DnsStack(Stack):
     hosted_zone: r53.IHostedZone

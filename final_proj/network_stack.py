@@ -47,7 +47,7 @@ class NetworkStack(Stack):
         self.backend_certificate = acm.Certificate(
             self,
             f"{settings.PROJECT_NAME}-backend-certificate",
-            domain_name = f"{settings.SUNET}.{settings.COURSE_DNS_ROOT}",
+            domain_name = f"wordpress.{settings.DNS_ROOT}",
             validation = acm.CertificateValidation.from_dns(props.network_hosted_zone)
         )
 

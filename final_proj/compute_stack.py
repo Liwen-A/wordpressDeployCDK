@@ -15,11 +15,12 @@ from aws_cdk import (
     aws_secretsmanager as secretsmanager,
     aws_iam as iam,
     aws_ecr as ecr,
-    Duration
+    Duration,
+    aws_efs as efs
 )
 from constructs import Construct
 import json
-from cdk.util import settings, Props
+from final_proj.util import settings, Props
 
 
 class ComputeStack(Stack):
@@ -54,11 +55,11 @@ class ComputeStack(Stack):
             source_volume=wordpress_volume.name
         )
 
-         props.data_aurora_db.secret.grant_read(fargate_task_definition.task_role)
+        props.data_aurora_db.secret.grant_read(fargate_task_definition.task_role)
 
-         image = ecs.ContainerImage.fromRegistry('library/wordpress:latest')
+        image = ecs.ContainerImage.from_registry('public.ecr.aws/docker/library/wordpress:beta-php8.3-fpm')
 
-         container = fargate_task_definition.add_container(
+        container = fargate_task_definition.add_container(
             f"{settings.PROJECT_NAME}-app-container",
             container_name = f"{settings.PROJECT_NAME}-app-container",
             image = image,
@@ -74,9 +75,9 @@ class ComputeStack(Stack):
             }
          )
 
-         container.add_mount_points(container_volume_mount_point)
+        container.add_mount_points(container_volume_mount_point)
 
-         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
+        fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             f"{settings.PROJECT_NAME}-fargate-service",
             cluster = cluster,

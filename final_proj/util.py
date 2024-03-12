@@ -8,14 +8,19 @@ from aws_cdk import (
     aws_rds as rds,
     aws_route53 as r53,
     aws_s3 as s3,
+    aws_efs as efs
 )
 
+from pydantic import field_validator
+from pydantic_core.core_schema import ValidationInfo
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class Settings:
-    PROJECT_NAME: "final_proj"
-    DNS_ROOT: "viralcascade.com"
-    REGION:  "us-west-2"
-    CDK_DEFAULT_ACCOUNT: "253577135241"
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "final-proj"
+    DNS_ROOT: str = "viralcascade.com"
+    REGION:  str = "us-west-2"
+    CDK_DEFAULT_ACCOUNT: str = "253577135241"
+
 
 settings = Settings()
 
@@ -25,7 +30,8 @@ class Props:
     network_frontend_certificate: acm.ICertificate
     network_hosted_zone: r53.IHostedZone
     data_aurora_db: rds.ServerlessCluster
-    data_s3_public_images: s3.Bucket
-    data_s3_private_images: s3.Bucket
-    data_cloudfront_public_images: cloudfront.Distribution
-    data_cloudfront_private_images: cloudfront.Distribution
+    file_system: efs.FileSystem
+    # data_s3_public_images: s3.Bucket
+    # data_s3_private_images: s3.Bucket
+    # data_cloudfront_public_images: cloudfront.Distribution
+    # data_cloudfront_private_images: cloudfront.Distribution

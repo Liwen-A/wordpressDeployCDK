@@ -7,11 +7,12 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_lambda as lambda_,
     aws_lambda_event_sources as lambda_event_sources,
+    aws_efs as efs
 )
 from aws_solutions_constructs import aws_cloudfront_s3 as cfs3
 from constructs import Construct
 
-from cdk.util import settings, Props
+from final_proj.util import settings, Props
 
 
 class DataStack(Stack):
