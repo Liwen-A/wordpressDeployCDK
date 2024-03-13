@@ -39,7 +39,7 @@ class DataStack(Stack):
         )
 
         self.file_system = efs.FileSystem(
-            self, "WebRoot",
+            self, "wordpressFS",
             vpc=props.network_vpc,
             performance_mode=efs.PerformanceMode.GENERAL_PURPOSE,
             throughput_mode=efs.ThroughputMode.BURSTING,

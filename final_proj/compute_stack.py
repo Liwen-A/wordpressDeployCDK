@@ -34,7 +34,7 @@ class ComputeStack(Stack):
         )
 
         wordpress_volume = ecs.Volume(
-            name="WebRoot",
+            name="wordpressFS",
             efs_volume_configuration=ecs.EfsVolumeConfiguration(
                 file_system_id=props.file_system.file_system_id
             )
@@ -51,13 +51,14 @@ class ComputeStack(Stack):
 
         container_volume_mount_point = ecs.MountPoint(
             read_only=False,
-            container_path="/var/www/html",
+            container_path="/bitnami/wordpress",
             source_volume=wordpress_volume.name
         )
 
         props.data_aurora_db.secret.grant_read(fargate_task_definition.task_role)
-
-        image = ecs.ContainerImage.from_registry('public.ecr.aws/docker/library/wordpress:beta-php8.3-fpm')
+        props.file_system.grant_root_access(fargate_task_definition.task_role)
+        props.file_system.grant(fargate_task_definition.task_role, "elasticfilesystem:ClientMount")
+        image = ecs.ContainerImage.from_registry('public.ecr.aws/bitnami/wordpress:latest')
 
         container = fargate_task_definition.add_container(
             f"{settings.PROJECT_NAME}-app-container",
@@ -65,18 +66,21 @@ class ComputeStack(Stack):
             image = image,
             logging = ecs.AwsLogDriver(stream_prefix=f"{settings.PROJECT_NAME}-fargate",log_retention=logs.RetentionDays.ONE_WEEK),
             environment = {
-                "WORDPRESS_DB_HOST": props.data_aurora_db.cluster_endpoint.hostname,
-                'WORDPRESS_TABLE_PREFIX': 'wp_'
+                "MARIADB_HOST": props.data_aurora_db.cluster_endpoint.hostname,
+                "PHP_MEMORY_LIMIT": "512M",
+                "enabled": "false",
+                "ALLOW_EMPTY_PASSWORD": "yes"
             },
             secrets={
-                'WORDPRESS_DB_USER': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="username"),
-                'WORDPRESS_DB_PASSWORD': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="password"),
-                'WORDPRESS_DB_NAME': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="dbname"),
-            }
+                'WORDPRESS_DATABASE_USER': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="username"),
+                'WORDPRESS_DATABASE_PASSWORD': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="password"),
+                'WORDPRESS_DATABASE_NAME': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="dbname"),
+            },
+            health_check = ecs.HealthCheck(command = ["curl -f http://localhost/api/v1/health/ || exit 1"]),
+            port_mappings = [ecs.PortMapping(container_port = 8080)],
          )
 
         container.add_mount_points(container_volume_mount_point)
-        container.add_port_mappings(ecs.PortMapping(container_port=80))
 
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -94,3 +98,8 @@ class ComputeStack(Stack):
         fargate_service.service.connections.allow_to(
             props.data_aurora_db, ec2.Port.tcp(5432), "DB access"
         )
+
+        fargate_service.service.connections.allow_to(props.file_system, ec2.Port.tcp(2049),"EFS access")
+        fargate_service.service.connections.allow_from(props.file_system, ec2.Port.tcp(2049),"EFS access")
+        
+ 
