@@ -33,32 +33,19 @@ class ComputeStack(Stack):
             self, f"{settings.PROJECT_NAME}-cluster", vpc=props.network_vpc
         )
 
-        wordpress_volume = ecs.Volume(
-            name="wordpressFS",
-            efs_volume_configuration=ecs.EfsVolumeConfiguration(
-                file_system_id=props.file_system.file_system_id
-            )
-        )
 
         fargate_task_definition = ecs.FargateTaskDefinition(
             self,
             f"{settings.PROJECT_NAME}-fargate-task-definition",
-            cpu = 512,
-            memory_limit_mib = 2048,
+            cpu = 1024,
+            memory_limit_mib = 3072,
             runtime_platform = ecs.RuntimePlatform(operating_system_family=ecs.OperatingSystemFamily.LINUX,cpu_architecture=ecs.CpuArchitecture.ARM64),
-            volumes = [wordpress_volume]
-        )
-
-        container_volume_mount_point = ecs.MountPoint(
-            read_only=False,
-            container_path="/bitnami/wordpress",
-            source_volume=wordpress_volume.name
         )
 
         props.data_aurora_db.secret.grant_read(fargate_task_definition.task_role)
-        props.file_system.grant_root_access(fargate_task_definition.task_role)
-        props.file_system.grant(fargate_task_definition.task_role, "elasticfilesystem:ClientMount")
-        image = ecs.ContainerImage.from_registry('public.ecr.aws/bitnami/wordpress:latest')
+        props.file_system.grant_read_write(fargate_task_definition.task_role)
+        props.file_system.grant(fargate_task_definition.task_role, "elasticfilesystem:*")
+        image = ecs.ContainerImage.from_registry('bitnami/wordpress')
 
         container = fargate_task_definition.add_container(
             f"{settings.PROJECT_NAME}-app-container",
@@ -76,11 +63,31 @@ class ComputeStack(Stack):
                 'WORDPRESS_DATABASE_PASSWORD': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="password"),
                 'WORDPRESS_DATABASE_NAME': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="dbname"),
             },
-            health_check = ecs.HealthCheck(command = ["curl -f http://localhost/api/v1/health/ || exit 1"]),
             port_mappings = [ecs.PortMapping(container_port = 8080)],
          )
 
-        container.add_mount_points(container_volume_mount_point)
+        ap = props.file_system.add_access_point("AccessPoint") #remove
+
+        fargate_task_definition.add_volume(
+            name="wordpressVolume",
+            efs_volume_configuration=ecs.EfsVolumeConfiguration(
+                file_system_id=props.file_system.file_system_id,
+                authorization_config=ecs.AuthorizationConfig(
+                    root_directory="/bitnami/wordpress", #remove
+                    access_point_id=ap.access_point_id, #remove
+                    iam="ENABLED"
+                ),
+                transit_encryption='ENABLED'
+            ),
+         )
+
+        container_volume_mount_point = ecs.MountPoint(
+            read_only=False,
+            container_path="/bitnami/wordpress",
+            source_volume="wordpressVolume"
+        )
+
+        container.add_mount_points(container_volume_mount_point) #remove
 
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -90,16 +97,27 @@ class ComputeStack(Stack):
             domain_zone = props.network_hosted_zone,
             certificate = props.network_backend_certificate,
             redirect_http = True,
-            task_definition = fargate_task_definition
+            task_definition = fargate_task_definition,
+            desired_count=2
         )
 
-        fargate_service.target_group.configure_health_check(path="/api/v1/health")
-
         fargate_service.service.connections.allow_to(
-            props.data_aurora_db, ec2.Port.tcp(5432), "DB access"
+            props.data_aurora_db, ec2.Port.tcp(3306), "DB access"
         )
 
         fargate_service.service.connections.allow_to(props.file_system, ec2.Port.tcp(2049),"EFS access")
-        fargate_service.service.connections.allow_from(props.file_system, ec2.Port.tcp(2049),"EFS access")
+
+
+        scaling = fargate_service.service.auto_scale_task_count(
+            min_capacity=2,
+            max_capacity=5
+        )
+
+        scaling.scale_on_cpu_utilization(
+            "CpuScaling",
+            target_utilization_percent=70,
+            scale_in_cooldown=Duration.seconds(60),
+            scale_out_cooldown=Duration.seconds(60),
+        )
         
  

@@ -23,15 +23,12 @@ network_stack = NetworkStack(
 )
 props.network_vpc = network_stack.vpc
 props.network_backend_certificate = network_stack.backend_certificate
-# props.network_frontend_certificate = network_stack.frontend_certificate
+
 
 data_stack = DataStack(app, f"{settings.PROJECT_NAME}-data-stack", props, env=env)
 props.data_aurora_db = data_stack.aurora_db
 props.file_system = data_stack.file_system
-# props.data_s3_public_images = data_stack.s3_public_images
-# props.data_s3_private_images = data_stack.s3_private_images
-# props.data_cloudfront_public_images = data_stack.cloudfront_public_images
-# props.data_cloudfront_private_images = data_stack.cloudfront_private_images
+
 
 compute_stack = ComputeStack(
     app, f"{settings.PROJECT_NAME}-compute-stack", props, env=env

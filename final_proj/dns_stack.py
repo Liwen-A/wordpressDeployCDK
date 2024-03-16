@@ -11,8 +11,4 @@ class DnsStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.hosted_zone = r53.HostedZone(
-            self,
-            f"{settings.PROJECT_NAME}-hosted-zone",
-            zone_name=settings.DNS_ROOT,
-        )
+        self.hosted_zone = r53.HostedZone.from_hosted_zone_attributes(self,hosted_zone_id="Z04763523A5N05AAFVZW0",zone_name="viralcascade.com",id="wordpressHZ")

@@ -43,20 +43,4 @@ class NetworkStack(Stack):
             ]
         )
 
-        # FILLMEIN: TLS certificate for backend
-        self.backend_certificate = acm.Certificate(
-            self,
-            f"{settings.PROJECT_NAME}-backend-certificate",
-            domain_name = f"wordpress.{settings.DNS_ROOT}",
-            validation = acm.CertificateValidation.from_dns(props.network_hosted_zone)
-        )
-
-        # # COMPLETED FOR YOU: TLS certificate for frontend
-        # self.frontend_certificate = acm.DnsValidatedCertificate(
-        #     self,
-        #     f"{settings.PROJECT_NAME}-frontend-certificate",
-        #     domain_name=settings.APP_DOMAIN,
-        #     subject_alternative_names=[f"*.{settings.APP_DOMAIN}"],
-        #     hosted_zone=props.network_hosted_zone,
-        #     region="us-east-1",  # Cloudfront certificate needs to be in us-east-1
-        # )
+        self.backend_certificate = acm.Certificate.from_certificate_arn(self, "domainCert", "arn:aws:acm:us-west-2:253577135241:certificate/16a4fa58-1b56-44c9-b414-99707fde37b6")

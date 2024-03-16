@@ -17,10 +17,7 @@ from final_proj.util import settings, Props
 
 class DataStack(Stack):
     aurora_db: rds.ServerlessCluster
-    s3_public_images: s3.Bucket
-    s3_private_images: s3.Bucket
-    cloudfront_public_images: cloudfront.Distribution
-    cloudfront_private_images: cloudfront.Distribution
+    file_system: efs.FileSystem
 
     def __init__(
         self, scope: Construct, construct_id: str, props: Props, **kwargs
@@ -38,12 +35,23 @@ class DataStack(Stack):
             credentials = rds.Credentials.from_generated_secret("wordpress",secret_name = "wordpressSecrets")
         )
 
+        efs_security_group = ec2.SecurityGroup(self, "EfsSecurityGroup",
+            vpc=props.network_vpc,
+            description="Allow efs access",
+            allow_all_outbound=True
+        )
+
+        efs_security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(2049), "allow efs access from the world")
+
         self.file_system = efs.FileSystem(
             self, "wordpressFS",
             vpc=props.network_vpc,
             performance_mode=efs.PerformanceMode.GENERAL_PURPOSE,
             throughput_mode=efs.ThroughputMode.BURSTING,
+            security_group= efs_security_group,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
         )
+
 
 
 
