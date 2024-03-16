@@ -44,7 +44,8 @@ class ComputeStack(Stack):
 
         props.data_aurora_db.secret.grant_read(fargate_task_definition.task_role)
         props.file_system.grant_read_write(fargate_task_definition.task_role)
-        props.file_system.grant(fargate_task_definition.task_role, "elasticfilesystem:*")
+        props.file_system.grant_root_access(fargate_task_definition.task_role)
+        props.file_system.grant(fargate_task_definition.task_role, "elasticfilesystem:DescribeMountTargets")
         image = ecs.ContainerImage.from_registry('bitnami/wordpress')
 
         container = fargate_task_definition.add_container(
@@ -56,7 +57,8 @@ class ComputeStack(Stack):
                 "MARIADB_HOST": props.data_aurora_db.cluster_endpoint.hostname,
                 "PHP_MEMORY_LIMIT": "512M",
                 "enabled": "false",
-                "ALLOW_EMPTY_PASSWORD": "yes"
+                "ALLOW_EMPTY_PASSWORD": "yes",
+                "HTTPS":"on"
             },
             secrets={
                 'WORDPRESS_DATABASE_USER': ecs.Secret.from_secrets_manager(props.data_aurora_db.secret, field="username"),
@@ -66,14 +68,24 @@ class ComputeStack(Stack):
             port_mappings = [ecs.PortMapping(container_port = 8080)],
          )
 
-        ap = props.file_system.add_access_point("AccessPoint") #remove
+        ap = props.file_system.add_access_point("AccessPoint",
+            path="/bitnami/wordpress",
+            create_acl=efs.Acl(
+                owner_uid="1001",
+                owner_gid="1001",
+                permissions="755"
+            ),
+            posix_user=efs.PosixUser(
+                uid="1001",
+                gid="1001"
+            )
+        ) #remove
 
         fargate_task_definition.add_volume(
             name="wordpressVolume",
             efs_volume_configuration=ecs.EfsVolumeConfiguration(
                 file_system_id=props.file_system.file_system_id,
                 authorization_config=ecs.AuthorizationConfig(
-                    root_directory="/bitnami/wordpress", #remove
                     access_point_id=ap.access_point_id, #remove
                     iam="ENABLED"
                 ),

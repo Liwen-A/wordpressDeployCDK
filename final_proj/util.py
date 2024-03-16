@@ -31,7 +31,3 @@ class Props:
     network_hosted_zone: r53.IHostedZone
     data_aurora_db: rds.ServerlessCluster
     file_system: efs.FileSystem
-    # data_s3_public_images: s3.Bucket
-    # data_s3_private_images: s3.Bucket
-    # data_cloudfront_public_images: cloudfront.Distribution
-    # data_cloudfront_private_images: cloudfront.Distribution

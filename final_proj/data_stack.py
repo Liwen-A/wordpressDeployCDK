@@ -24,7 +24,6 @@ class DataStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # FILLMEIN: Aurora Serverless Database
         self.aurora_db = rds.ServerlessCluster(
             self,
             f"{settings.PROJECT_NAME}-aurora-serverless",
